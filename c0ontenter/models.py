@@ -76,6 +76,9 @@ class Generation(Base):
     kind: Mapped[str] = mapped_column(String(32))
     prompt: Mapped[str | None] = mapped_column(Text)
     cost_credits: Mapped[int] = mapped_column(Integer)
+    provider_task_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+    result_url: Mapped[str | None] = mapped_column(Text)
+    aspect_ratio: Mapped[str | None] = mapped_column(String(8))
     status: Mapped[GenerationStatus] = mapped_column(
         Enum(GenerationStatus), default=GenerationStatus.reserved
     )
