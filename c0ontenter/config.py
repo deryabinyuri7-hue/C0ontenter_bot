@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     )
     welcome_credits: int = Field(default=1, ge=0)
     log_level: str = "INFO"
+    kie_api_key: SecretStr | None = None
+    image_model_id: str | None = None
+    kie_image_task_status_path: str | None = None
+    kie_poll_interval_seconds: int = Field(default=10, ge=1, le=60)
+    kie_max_wait_seconds: int = Field(default=600, ge=30, le=3600)
 
     @field_validator("database_url")
     @classmethod
