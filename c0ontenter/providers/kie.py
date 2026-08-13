@@ -73,7 +73,12 @@ class KieGenerationProvider:
         else:
             raw_result = data.get("resultJson")
             try:
-                result_url = (json.loads(raw_result or "{}").get("resultUrls") or [None])[0]
+                result = (
+                    raw_result
+                    if isinstance(raw_result, dict)
+                    else json.loads(raw_result or "{}")
+                )
+                result_url = (result.get("resultUrls") or [None])[0]
             except (TypeError, json.JSONDecodeError):
                 result_url = None
         return ProviderTask(
