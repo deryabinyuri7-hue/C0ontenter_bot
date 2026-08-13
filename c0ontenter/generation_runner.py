@@ -29,6 +29,7 @@ async def run_provider_generation(
     max_wait_seconds: int,
     on_success: Callable[[str], Awaitable[None]],
     on_error: Callable[[str], Awaitable[None]],
+    on_progress: Callable[[int], Awaitable[None]],
     allow_submission: bool = True,
 ) -> None:
     """Submit once, then poll an existing provider task until it settles."""
@@ -57,6 +58,7 @@ async def run_provider_generation(
 
         elapsed = 0
         while elapsed < max_wait_seconds:
+            await on_progress(min(90, 15 + int(elapsed / max_wait_seconds * 75)))
             task = await provider.get_task_status(kind=kind, task_id=task_id)
             if task.state == "success" and task.result_url:
                 async with sessions() as session:
@@ -128,6 +130,7 @@ async def recover_provider_generations(
             max_wait_seconds=max_wait_seconds,
             on_success=_ignore_success,
             on_error=_ignore_error,
+            on_progress=_ignore_progress,
             allow_submission=False,
         )
 
@@ -137,4 +140,8 @@ async def _ignore_success(_: str) -> None:
 
 
 async def _ignore_error(_: str) -> None:
+    return None
+
+
+async def _ignore_progress(_: int) -> None:
     return None
