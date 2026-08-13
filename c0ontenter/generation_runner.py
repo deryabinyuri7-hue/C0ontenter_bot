@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -12,6 +13,8 @@ from c0ontenter.services import (
     set_provider_task,
     settle_generation,
 )
+
+logger = structlog.get_logger(__name__)
 
 
 async def run_provider_generation(
@@ -74,7 +77,13 @@ async def run_provider_generation(
                 timed_out=True,
             )
         await on_error("Время ожидания генерации истекло; кредит возвращён.")
-    except Exception:
+    except Exception as exc:
+        logger.warning(
+            "provider_generation_failed",
+            generation_id=generation_id,
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+        )
         async with sessions() as session:
             await settle_generation(
                 session, generation_id, success=False, error_code="provider_error"
