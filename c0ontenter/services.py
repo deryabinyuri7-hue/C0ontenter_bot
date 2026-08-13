@@ -111,6 +111,7 @@ async def settle_generation(
     *,
     success: bool,
     error_code: str | None = None,
+    timed_out: bool = False,
 ) -> Generation:
     generation = await session.scalar(
         select(Generation).where(Generation.id == generation_id).with_for_update()
@@ -139,7 +140,7 @@ async def settle_generation(
         generation.status = GenerationStatus.succeeded
     else:
         reservation.status = LedgerStatus.confirmed
-        generation.status = GenerationStatus.failed
+        generation.status = GenerationStatus.timed_out if timed_out else GenerationStatus.failed
         generation.error_code = error_code or "generation_failed"
         session.add(
             CreditLedger(
@@ -149,6 +150,48 @@ async def settle_generation(
                 kind=LedgerKind.refund,
             )
         )
+    await session.commit()
+    return generation
+
+
+async def set_provider_task(
+    session: AsyncSession, generation_id: int, provider_task_id: str
+) -> Generation:
+    generation = await session.scalar(
+        select(Generation).where(Generation.id == generation_id).with_for_update()
+    )
+    if generation is None:
+        raise ValueError("Generation does not exist")
+    if generation.provider_task_id is None:
+        generation.provider_task_id = provider_task_id
+        generation.status = GenerationStatus.processing
+        await session.commit()
+    return generation
+
+
+async def claim_provider_submission(session: AsyncSession, generation_id: int) -> bool:
+    """Claim a reserved generation before calling the external provider once."""
+    generation = await session.scalar(
+        select(Generation).where(Generation.id == generation_id).with_for_update()
+    )
+    if generation is None:
+        raise ValueError("Generation does not exist")
+    if generation.status != GenerationStatus.reserved or generation.provider_task_id is not None:
+        return False
+    generation.status = GenerationStatus.processing
+    await session.commit()
+    return True
+
+
+async def set_generation_result(
+    session: AsyncSession, generation_id: int, result_url: str
+) -> Generation:
+    generation = await session.scalar(
+        select(Generation).where(Generation.id == generation_id).with_for_update()
+    )
+    if generation is None:
+        raise ValueError("Generation does not exist")
+    generation.result_url = result_url
     await session.commit()
     return generation
 
